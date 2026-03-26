@@ -164,17 +164,15 @@
         // 自定速阅读一个句子，返回该句子每个词的反应时（毫秒）数组（如果 record=true）
         async function selfPacedReading(words, record = false, sentenceId = null) {
             const wordRows = [];
-            // 确保 sentenceId 是有效的数字（若为 null/undefined 则设为 0）
             const sid = (sentenceId !== null && sentenceId !== undefined) ? sentenceId : 0;
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
                 msgDiv.innerText = "按空格键继续...";
                 const start = performance.now();
-                const key = await waitForKey([' ', 'Escape']); // 空格键或 Escape
+                const key = await waitForKey([' ', 'Escape']);
                 const rt = performance.now() - start;
 
                 if (key === 'Escape') {
-                    // 退出实验
                     document.body.innerHTML = '<div style="color:white;text-align:center;margin-top:20%">实验已退出</div>';
                     throw new Error('Experiment terminated by user');
                 }
@@ -187,10 +185,9 @@
                         sentence_id: sid,
                         word_index: i,
                         word: words[i],
-                        rt_ms: Math.round(rt)  // 四舍五入到整数毫秒
+                        rt_ms: Math.round(rt)
                     });
                 }
-                // 防止连按的短暂延迟
                 await delay(100);
             }
             return wordRows;
@@ -205,7 +202,6 @@
             const key = await waitForKey(['1', '2', 'Escape']);
             if (key === 'Escape') throw new Error('Experiment terminated');
             const response = parseInt(key);
-            // 明确比较，确保 correct 是布尔值
             const correct = (response === correctAnswer);
             return { response, correct };
         }
@@ -235,9 +231,7 @@
                 headers.join(','),
                 ...data.map(row => headers.map(h => {
                     let val = row[h];
-                    // 处理布尔值：转为 "true"/"false"
                     if (typeof val === 'boolean') val = val ? 'true' : 'false';
-                    // 处理 null/undefined：转为空字符串
                     if (val === null || val === undefined) val = '';
                     return JSON.stringify(val);
                 }).join(','))
@@ -252,6 +246,29 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+        }
+
+        // 向 Google Sheets 发送数据
+        async function submitToGoogleSheets(wordData, questionData) {
+            const url = "https://script.google.com/macros/s/AKfycbxtAmciAoVVteX9xMzNOuUxq6tiksV9eCiPEY8sUtC0aZPk5L-1tTgL7YX8f_5hW5WP/exec";
+            const payload = {
+                participant: PARTICIPANT,
+                session: SESSION,
+                date: DATE_STR,
+                words: wordData,
+                questions: questionData
+            };
+            try {
+                await fetch(url, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                console.log("数据已提交到 Google Sheets");
+            } catch (err) {
+                console.error("提交失败:", err);
+            }
         }
 
         // ======================= 主实验流程 =======================
@@ -291,15 +308,17 @@
                             option1: q.options[0],
                             option2: q.options[1],
                             response: response,
-                            correct: correct   // 此时 correct 是布尔值
+                            correct: correct
                         });
                     }
-                    // 句子间短暂间隔
                     await delay(500);
                 }
 
-                // ---------- 结束，显示下载按钮 ----------
-                await showTextAndWait("实验结束，谢谢参与！\n\n数据已生成，请点击右下角按钮下载。", 30);
+                // ---------- 结束，自动提交数据到 Google Sheets ----------
+                await showTextAndWait("实验结束，谢谢参与！\n\n数据正在自动上传，请稍候……", 30);
+                await submitToGoogleSheets(wordData, questionData);
+                await showTextAndWait("数据已成功上传！\n\n您也可以点击右下角按钮下载备份文件。", 30);
+
                 document.getElementById('download-panel').style.display = 'block';
                 document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${PARTICIPANT}.csv`);
                 document.getElementById('download-questions').onclick = () => downloadCSV(questionData, `questions_${PARTICIPANT}.csv`);
@@ -311,7 +330,6 @@
                 }
             } catch (err) {
                 console.error(err);
-                // 如果用户按 Escape 退出，这里可以显示提示
                 if (err.message === 'Experiment terminated by user') {
                     stimDiv.innerText = "实验已退出";
                     msgDiv.innerText = "您可以关闭页面。";
