@@ -164,6 +164,8 @@
         // 自定速阅读一个句子，返回该句子每个词的反应时（毫秒）数组（如果 record=true）
         async function selfPacedReading(words, record = false, sentenceId = null) {
             const wordRows = [];
+            // 确保 sentenceId 是有效的数字（若为 null/undefined 则设为 0）
+            const sid = (sentenceId !== null && sentenceId !== undefined) ? sentenceId : 0;
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
                 msgDiv.innerText = "按空格键继续...";
@@ -178,15 +180,12 @@
                 }
 
                 if (record) {
-                    // 确保 sentence_id 和 word_index 总是有值
-                    const sid = (sentenceId !== undefined && sentenceId !== null) ? sentenceId : 0;
-                    const widx = (i !== undefined && i !== null) ? i : 0;
                     wordRows.push({
                         participant: PARTICIPANT,
                         session: SESSION,
                         date: DATE_STR,
                         sentence_id: sid,
-                        word_index: widx,
+                        word_index: i,
                         word: words[i],
                         rt_ms: Math.round(rt)  // 四舍五入到整数毫秒
                     });
@@ -206,6 +205,7 @@
             const key = await waitForKey(['1', '2', 'Escape']);
             if (key === 'Escape') throw new Error('Experiment terminated');
             const response = parseInt(key);
+            // 明确比较，确保 correct 是布尔值
             const correct = (response === correctAnswer);
             return { response, correct };
         }
@@ -227,13 +227,20 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // 导出 CSV
+        // 导出 CSV（确保布尔值输出为字符串 "true"/"false"）
         function downloadCSV(data, filename) {
             if (!data.length) return;
             const headers = Object.keys(data[0]);
             const csvRows = [
                 headers.join(','),
-                ...data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','))
+                ...data.map(row => headers.map(h => {
+                    let val = row[h];
+                    // 处理布尔值：转为 "true"/"false"
+                    if (typeof val === 'boolean') val = val ? 'true' : 'false';
+                    // 处理 null/undefined：转为空字符串
+                    if (val === null || val === undefined) val = '';
+                    return JSON.stringify(val);
+                }).join(','))
             ];
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -284,7 +291,7 @@
                             option1: q.options[0],
                             option2: q.options[1],
                             response: response,
-                            correct: correct
+                            correct: correct   // 此时 correct 是布尔值
                         });
                     }
                     // 句子间短暂间隔
