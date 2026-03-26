@@ -248,9 +248,9 @@
             URL.revokeObjectURL(url);
         }
 
-        // 向 Google Sheets 发送数据
+        // 向 Google Sheets 发送数据（使用您提供的最新 URL）
         async function submitToGoogleSheets(wordData, questionData) {
-            const url = "https://script.google.com/macros/s/AKfycbxtAmciAoVVteX9xMzNOuUxq6tiksV9eCiPEY8sUtC0aZPk5L-1tTgL7YX8f_5hW5WP/exec";
+            const url = "https://script.google.com/macros/s/AKfycbzKHY4dJIEH5Mx2xfXUpJKs_lMzy2QKXpfAIUS-s9YKkggYiLcPi1G657Insl8oyMRI/exec";
             const payload = {
                 participant: PARTICIPANT,
                 session: SESSION,
