@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>自定速阅读实验</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+            font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", SimHei, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        #stimulus {
+            font-size: 40px;
+            text-align: center;
+            user-select: none;
+        }
+        #message {
+            font-size: 24px;
+            margin-top: 50px;
+            color: #aaa;
+        }
+        #download-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+        button {
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="stimulus"></div>
+    <div id="message"></div>
+    <div id="download-panel">
+        实验结束！数据已准备就绪。
+        <button id="download-words">下载单词数据</button>
+        <button id="download-questions">下载问答数据</button>
+    </div>
+
+    <script>
+        // ======================= 实验配置 =======================
+        const PARTICIPANT = "test_" + new Date().toISOString().slice(0,19).replace(/:/g, '-');
+        const SESSION = "001";
+        const DATE_STR = new Date().toISOString().slice(0,10);
+
+        // ---------- 句子列表（已全部添加句号）----------
+        const rawSentences = [
+            "主任认为 那个校长 大家 都不喜欢。",
+            "很多决定 孩子们 无法独立作出。",
+            "老师认为 这项规定 很多学生 都不理解。",
+            "经理表示 团队成员 都不支持 这个方案。",
+            "昨天的派对 只有他 一个人 去了。",
+            "老板指出 这种情况 员工们 都没有预料到。",
+            "主任认为 大家 都不喜欢 那个校长。",
+            "肯德基的 全家桶 我最 喜欢吃了。",
+            "负责人承认 这种做法 团队成员 都不支持。",
+            "家长指出 孩子们 都不适应 这种教育方式。",
+            "老师发现 同学们 都不愿接近 这个学生。",
+            "他这个人 说话 总是词不达意。",
+            "经理承认 这种安排 员工们 都不满意。",
+            "邻居们发现 那户人家 大家 都不愿接近。",
+            "那次直播 网友们 都不愿提起。",
+            "领导表示 很多员工 都不看好 这项改革。",
+            "家长知道 孩子们 都不喜欢 那位老师。",
+            "同事们发现 他的表现 老板 并不满意。",
+            "这次事件 主办方 拒绝分享细节。",
+            "老师发现 这个学生 同学们 都不愿接近。",
+            "记者指出 公众 一直没有重视 这类问题。",
+            "主任表示 部门员工 都难以接受 这次调整。",
+            "他的行为 所有老师 都看不惯。",
+            "专家指出 这种现象 普通人 都没有意识到。",
+            "老板承认 员工们 都无法理解 这个决定。",
+            "我对这件事的看法 他们 都不了解。",
+            "负责人指出 大家 都没有注意到 这个问题。",
+            "同事们发现 上级领导 都不认可 这种态度。",
+            "家长指出 这种教育方式 孩子们 都不适应。",
+            "这场足球比赛 我们队 强于 他们队。",
+            "调查显示 年轻人 已经不再认同 这种观念。",
+            "经理发现 多个部门 都没有解决 这个问题。",
+            "老板承认 这个决定 员工们 都无法理解。",
+            "邻居们发现 大家 都不愿接近 那户人家。",
+            "经理表示 这个方案 团队成员 都不支持。",
+            "负责人指出 这个问题 大家 都没有注意到。",
+            "家长知道 那位老师 孩子们 都不喜欢。",
+            "领导表示 这项改革 很多员工 都不看好。",
+            "老师认为 很多学生 都不理解 这项规定。",
+            "主任表示 这次调整 部门员工 都难以接受。",
+            "同事们发现 这种态度 上级领导 都不认可。",
+            "调查显示 这种观念 年轻人 已经不再认同。",
+            "记者指出 这类问题 公众 一直没有重视。",
+            "专家指出 普通人 都没有意识到 这种现象。",
+            "负责人承认 团队成员 都不支持 这种做法。",
+            "经理承认 员工们 都不满意 这种安排。",
+            "老板指出 员工们 都没有预料到 这种情况。",
+            "经理发现 这个问题 多个部门 都没有解决。",
+            "同事们发现 老板 并不满意 他的表现。",
+            "朋友们都说 米其林一星 味道 真的很一般。"
+        ];
+        const sentences = rawSentences.map(s => s.split(' '));
+        const questionIndices = [9, 19, 29, 34, 46];
+        const questionsData = {
+            9: { text: "谁不适应这种教育方式", options: ["家长", "孩子们"], correct: 2 },
+            19: { text: "不愿接近这个学生的是", options: ["同学们", "老师"], correct: 1 },
+            29: { text: "更强的是", options: ["我们队", "他们队"], correct: 1 },
+            34: { text: "不支持这个方案的是", options: ["经理", "团队成员"], correct: 2 },
+            46: { text: "谁没有预料到这种情况", options: ["老板", "员工们"], correct: 2 }
+        };
+
+        // 练习材料
+        const practiceSentence = "接下来 你要读 一些句子。";
+        const practiceWords = practiceSentence.split(' ');
+        const practiceQuestionText = "接下来你要读";
+        const practiceOptions = ["句子", "词语"];
+
+        // 数据存储
+        let wordData = [];
+        let questionData = [];
+
+        // DOM 元素
+        const stimDiv = document.getElementById('stimulus');
+        const msgDiv = document.getElementById('message');
+
+        // 辅助函数：显示文本并等待任意按键（用于指导语）
+        function showTextAndWait(text, fontSize = 30) {
+            stimDiv.style.fontSize = fontSize + 'px';
+            stimDiv.innerText = text;
+            msgDiv.innerText = "按任意键继续...";
+            return new Promise(resolve => {
+                const handler = (e) => {
+                    window.removeEventListener('keydown', handler);
+                    resolve();
+                };
+                window.addEventListener('keydown', handler);
+            });
+        }
+
+        // 显示固定点（+），持续指定秒数
+        function showFixation(duration = 0.5) {
+            stimDiv.innerText = '+';
+            msgDiv.innerText = '';
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve();
+                }, duration * 1000);
+            });
+        }
+
+        // 自定速阅读一个句子，返回该句子每个词的反应时（毫秒）数组（如果 record=true）
+        async function selfPacedReading(words, record = false, sentenceId = null) {
+            const wordRows = [];
+            for (let i = 0; i < words.length; i++) {
+                stimDiv.innerText = words[i];
+                msgDiv.innerText = "按空格键继续...";
+                const start = performance.now();
+                const key = await waitForKey([' ', 'Escape']); // 空格键或 Escape
+                const rt = performance.now() - start;
+
+                if (key === 'Escape') {
+                    // 退出实验
+                    document.body.innerHTML = '<div style="color:white;text-align:center;margin-top:20%">实验已退出</div>';
+                    throw new Error('Experiment terminated by user');
+                }
+
+                if (record) {
+                    wordRows.push({
+                        participant: PARTICIPANT,
+                        session: SESSION,
+                        date: DATE_STR,
+                        sentence_id: sentenceId,
+                        word_index: i,
+                        word: words[i],
+                        rt_ms: rt
+                    });
+                }
+                // 防止连按的短暂延迟
+                await delay(100);
+            }
+            return wordRows;
+        }
+
+        // 显示选择题，返回 { response, correct }
+        async function showQuestion(questionText, options, correctAnswer) {
+            const display = `${questionText}\n\n1. ${options[0]}\n2. ${options[1]}\n\n请按 1 或 2 作答`;
+            stimDiv.innerText = display;
+            stimDiv.style.fontSize = '30px';
+            msgDiv.innerText = '';
+            const key = await waitForKey(['1', '2', 'Escape']);
+            if (key === 'Escape') throw new Error('Experiment terminated');
+            const response = parseInt(key);
+            const correct = (response === correctAnswer);
+            return { response, correct };
+        }
+
+        // 等待某个键按下（可指定允许的键列表）
+        function waitForKey(allowedKeys) {
+            return new Promise(resolve => {
+                const handler = (e) => {
+                    const key = e.key;
+                    if (allowedKeys && !allowedKeys.includes(key)) return;
+                    window.removeEventListener('keydown', handler);
+                    resolve(key);
+                };
+                window.addEventListener('keydown', handler);
+            });
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // 导出 CSV
+        function downloadCSV(data, filename) {
+            if (!data.length) return;
+            const headers = Object.keys(data[0]);
+            const csvRows = [
+                headers.join(','),
+                ...data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','))
+            ];
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // ======================= 主实验流程 =======================
+        async function runExperiment() {
+            try {
+                // ---------- 指导语 ----------
+                await showTextAndWait("欢迎参加实验！", 30);
+                await showTextAndWait("首先进行练习，让您熟悉流程。\n\n练习1：您将逐词阅读一个句子。\n每看完一个词，请按空格键继续。\n\n按任意键开始练习1。", 30);
+                await showFixation(0.5);
+                await selfPacedReading(practiceWords, false);
+
+                await showTextAndWait("练习2：您将看到一个选择题。\n请按数字键 1 或 2 选择答案。\n\n按任意键开始练习2。", 30);
+                const practiceDisplay = `${practiceQuestionText}\n\n1. ${practiceOptions[0]}\n2. ${practiceOptions[1]}\n\n请按 1 或 2`;
+                stimDiv.innerText = practiceDisplay;
+                stimDiv.style.fontSize = '30px';
+                msgDiv.innerText = '';
+                await waitForKey(['1', '2', 'Escape']);
+
+                await showTextAndWait("练习结束。\n\n正式实验即将开始。\n部分句子后会有一个选择题，请按 1 或 2 作答。\n\n按任意键开始正式实验。", 30);
+
+                // ---------- 正式实验 ----------
+                for (let sentIdx = 0; sentIdx < sentences.length; sentIdx++) {
+                    await showFixation(0.5);
+                    const words = sentences[sentIdx];
+                    const wordRows = await selfPacedReading(words, true, sentIdx);
+                    wordData.push(...wordRows);
+
+                    if (questionIndices.includes(sentIdx)) {
+                        const q = questionsData[sentIdx];
+                        const { response, correct } = await showQuestion(q.text, q.options, q.correct);
+                        questionData.push({
+                            participant: PARTICIPANT,
+                            session: SESSION,
+                            date: DATE_STR,
+                            sentence_id: sentIdx,
+                            question: q.text,
+                            option1: q.options[0],
+                            option2: q.options[1],
+                            response: response,
+                            correct: correct
+                        });
+                    }
+                    // 句子间短暂间隔
+                    await delay(500);
+                }
+
+                // ---------- 结束，显示下载按钮 ----------
+                await showTextAndWait("实验结束，谢谢参与！\n\n数据已生成，请点击右下角按钮下载。", 30);
+                document.getElementById('download-panel').style.display = 'block';
+                document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${PARTICIPANT}.csv`);
+                document.getElementById('download-questions').onclick = () => downloadCSV(questionData, `questions_${PARTICIPANT}.csv`);
+
+                if (questionData.length) {
+                    const total = questionData.length;
+                    const correctCount = questionData.filter(d => d.correct).length;
+                    console.log(`答题正确率: ${correctCount}/${total} (${(correctCount/total*100).toFixed(1)}%)`);
+                }
+            } catch (err) {
+                console.error(err);
+                // 如果用户按 Escape 退出，这里可以显示提示
+                if (err.message === 'Experiment terminated by user') {
+                    stimDiv.innerText = "实验已退出";
+                    msgDiv.innerText = "您可以关闭页面。";
+                } else {
+                    stimDiv.innerText = "发生错误，请刷新页面重试。";
+                    msgDiv.innerText = err.message;
+                }
+            }
+        }
+
+        // 启动实验
+        runExperiment();
+    </script>
+</body>
+</html>
