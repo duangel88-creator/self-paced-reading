@@ -26,6 +26,16 @@
             margin-top: 50px;
             color: #aaa;
         }
+        #progress {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 16px;
+            color: #ccc;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
         #download-panel {
             position: fixed;
             bottom: 20px;
@@ -37,89 +47,118 @@
             font-size: 14px;
             z-index: 1000;
             display: none;
+            flex-direction: column;
+            gap: 8px;
         }
-        button {
-            margin-left: 10px;
+        #download-panel button {
+            margin-left: 0;
             cursor: pointer;
+        }
+        .feedback {
+            font-size: 30px;
+            margin-top: 20px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div id="stimulus"></div>
     <div id="message"></div>
+    <div id="progress"></div>
     <div id="download-panel">
-        实验结束！数据已准备就绪。
         <button id="download-words">下载单词数据</button>
         <button id="download-questions">下载问答数据</button>
+        <button id="copy-data">📋 复制数据到剪贴板</button>
     </div>
 
     <script>
         // ======================= 实验配置 =======================
-        const PARTICIPANT = "p" + new Date().toISOString().slice(0,19).replace(/:/g, '-');
+        // 收集被试信息
+        let participantId = "";
+        let ieltsScore = "";
+        while (!participantId) {
+            participantId = prompt("请输入您的被试编号（例如：P001）：");
+            if (participantId === null) throw new Error("实验已取消");
+            participantId = participantId.trim();
+        }
+        while (!ieltsScore) {
+            ieltsScore = prompt("请输入您的雅思成绩（例如：6.5）：");
+            if (ieltsScore === null) throw new Error("实验已取消");
+            ieltsScore = ieltsScore.trim();
+        }
+        const safeId = participantId.replace(/[^a-zA-Z0-9]/g, '_');
+        const safeIelts = ieltsScore.replace(/[^0-9.]/g, '_');
+        const filePrefix = `${safeId}_IELTS${safeIelts}`;
         const SESSION = "001";
         const DATE_STR = new Date().toISOString().slice(0,10);
 
-        // ---------- 正式实验数据（按您提供的顺序）----------
+        // ---------- 正式实验数据（需用户补充 condition 和 target_index）----------
+        // 注意：请根据实际研究设计，为每个句子填写 condition 字段：
+        //   - "garden"       (花园路径句)
+        //   - "non_garden"   (非花园路径句)
+        //   - "filler"       (填充句)
+        // 并指定 target_index（关键目标词在句子中的位置，从0开始计数）
         const trials = [
-            { sentence: "主任认为 那个校长 大家 都不喜欢。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1 },
-            { sentence: "老板指出 员工们 都没有预料到 这种情况。", question: "谁没有预料到这种情况？", opt1: "老板", opt2: "员工们", correct: 2 },
-            { sentence: "很多决定 孩子们 无法独立作出。", question: "谁无法独立作出决定？", opt1: "孩子们", opt2: "大人们", correct: 1 },
-            { sentence: "同事们发现 他的表现 老板 并不满意。", question: "谁对他的表现不满意？", opt1: "老板", opt2: "同事们", correct: 1 },
-            { sentence: "经理发现 多个部门 都没有解决 这个问题。", question: "谁没有解决这个问题？", opt1: "多个部门", opt2: "经理", correct: 1 },
-            { sentence: "老师发现 这个学生 同学们 都不愿接近。", question: "不愿接近这个学生的是？", opt1: "老师", opt2: "同学们", correct: 2 },
-            { sentence: "那次直播 网友们 都不愿提起。", question: "谁不愿提起那次直播？", opt1: "网友们", opt2: "驴友们", correct: 1 },
-            { sentence: "老板承认 这个决定 员工们 都无法理解。", question: "谁无法理解这个决定？", opt1: "员工们", opt2: "老板", correct: 1 },
-            { sentence: "记者指出 公众 一直没有重视 这类问题。", question: "谁没有重视这类问题？", opt1: "记者", opt2: "公众", correct: 2 },
-            { sentence: "负责人承认 团队成员 都不支持 这种做法。", question: "谁不支持这种做法？", opt1: "负责人", opt2: "团队成员", correct: 2 },
-            { sentence: "经理表示 这个方案 团队成员 都不支持。", question: "谁不支持这个方案？", opt1: "团队成员", opt2: "经理", correct: 1 },
-            { sentence: "负责人指出 这个问题 大家 都没有注意到。", question: "谁没有注意到这个问题？", opt1: "大家", opt2: "负责人", correct: 1 },
-            { sentence: "家长知道 那位老师 孩子们 都不喜欢。", question: "孩子们不喜欢谁？", opt1: "家长", opt2: "那位老师", correct: 2 },
-            { sentence: "肯德基的 全家桶 我最 喜欢吃了。", question: "谁最喜欢吃全家桶？", opt1: "我", opt2: "扬扬", correct: 1 },
-            { sentence: "老师认为 很多学生 都不理解 这项规定。", question: "谁不理解这项规定？", opt1: "老师", opt2: "很多学生", correct: 2 },
-            { sentence: "邻居们发现 那户人家 大家 都不愿接近。", question: "谁不愿接近那户人家的是？", opt1: "邻居们", opt2: "大家", correct: 2 },
-            { sentence: "昨天的派对 只有他 一个人 去了。", question: "谁去了昨天的派对？", opt1: "他", opt2: "我", correct: 1 },
-            { sentence: "领导表示 很多员工 都不看好 这项改革。", question: "谁不看好这项改革？", opt1: "领导", opt2: "很多员工", correct: 2 },
-            { sentence: "朋友们都说 米其林一星 味道 真的很一般。", question: "谁觉得味道很一般？", opt1: "米其林一星", opt2: "朋友们", correct: 2 },
-            { sentence: "同事们发现 上级领导 都不认可 这种态度。", question: "谁不认可这种态度？", opt1: "同事们", opt2: "上级领导", correct: 2 },
-            { sentence: "专家指出 普通人 都没有意识到 这种现象。", question: "谁没有意识到这种现象？", opt1: "普通人", opt2: "专家", correct: 1 },
-            { sentence: "调查显示 这种观念 年轻人 已经不再认同。", question: "谁不再认同这种观念？", opt1: "年轻人", opt2: "调查人员", correct: 1 },
-            { sentence: "主任表示 部门员工 都难以接受 这次调整。", question: "谁难以接受这次调整？", opt1: "部门员工", opt2: "主任", correct: 1 },
-            { sentence: "经理承认 这种安排 员工们 都不满意。", question: "谁对这种安排不满意？", opt1: "经理", opt2: "员工们", correct: 2 },
-            { sentence: "他的行为 所有老师 都看不惯。", question: "谁看不惯他的行为？", opt1: "所有同学", opt2: "所有老师", correct: 2 },
-            { sentence: "家长指出 孩子们 都不适应 这种教育方式。", question: "谁不适应这种教育方式？", opt1: "孩子们", opt2: "家长", correct: 1 },
-            { sentence: "老师认为 这项规定 很多学生 都不理解。", question: "谁不理解这项规定？", opt1: "老师", opt2: "很多学生", correct: 2 },
-            { sentence: "老板指出 这种情况 员工们 都没有预料到。", question: "谁没有预料到这种情况？", opt1: "员工们", opt2: "老板", correct: 1 },
-            { sentence: "经理发现 这个问题 多个部门 都没有解决。", question: "谁没有解决这个问题？", opt1: "多个部门", opt2: "经理", correct: 1 },
-            { sentence: "领导表示 这项改革 很多员工 都不看好。", question: "谁不看好这项改革？", opt1: "领导", opt2: "很多员工", correct: 2 },
-            { sentence: "主任认为 大家 都不喜欢 那个校长。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1 },
-            { sentence: "同事们发现 这种态度 上级领导 都不认可。", question: "谁不认可这种态度？", opt1: "上级领导", opt2: "同事们", correct: 1 },
-            { sentence: "同事们发现 老板 并不满意 他的表现。", question: "谁对他的表现不满意？", opt1: "老板", opt2: "同事们", correct: 1 },
-            { sentence: "老师发现 同学们 都不愿接近 这个学生。", question: "不愿接近这个学生的是？", opt1: "老师", opt2: "同学们", correct: 2 },
-            { sentence: "老板承认 员工们 都无法理解 这个决定。", question: "谁无法理解这个决定？", opt1: "员工们", opt2: "老板", correct: 1 },
-            { sentence: "我对这件事的看法 他们 都不了解。", question: "谁不了解这件事的看法？", opt1: "我", opt2: "他们", correct: 2 },
-            { sentence: "经理表示 团队成员 都不支持 这个方案。", question: "谁不支持这个方案？", opt1: "团队成员", opt2: "经理", correct: 1 },
-            { sentence: "负责人指出 大家 都没有注意到 这个问题。", question: "谁没有注意到这个问题？", opt1: "大家", opt2: "负责人", correct: 1 },
-            { sentence: "专家指出 这种现象 普通人 都没有意识到。", question: "谁没有意识到这种现象？", opt1: "普通人", opt2: "专家", correct: 1 },
-            { sentence: "家长知道 孩子们 都不喜欢 那位老师。", question: "孩子们不喜欢谁？", opt1: "那位老师", opt2: "家长", correct: 1 },
-            { sentence: "家长指出 这种教育方式 孩子们 都不适应。", question: "谁不适应这种教育方式？", opt1: "孩子们", opt2: "家长", correct: 1 },
-            { sentence: "他这个人 说话 总是词不达意。", question: "谁说话总是词不达意？", opt1: "他", opt2: "我", correct: 1 },
-            { sentence: "邻居们发现 大家 都不愿接近 那户人家。", question: "谁不愿接近那户人家的是？", opt1: "邻居们", opt2: "大家", correct: 2 },
-            { sentence: "主任表示 这次调整 部门员工 都难以接受。", question: "谁难以接受这次调整？", opt1: "部门员工", opt2: "主任", correct: 1 },
-            { sentence: "负责人承认 这种做法 团队成员 都不支持。", question: "谁不支持这种做法？", opt1: "团队成员", opt2: "负责人", correct: 1 },
-            { sentence: "调查显示 年轻人 已经不再认同 这种观念。", question: "谁不再认同这种观念？", opt1: "调查人员", opt2: "年轻人", correct: 2 },
-            { sentence: "记者指出 这类问题 公众 一直没有重视。", question: "谁没有重视这类问题？", opt1: "记者", opt2: "公众", correct: 2 },
-            { sentence: "这次事件 主办方 拒绝分享细节。", question: "谁拒绝分享细节？", opt1: "主办方", opt2: "网友", correct: 1 },
-            { sentence: "经理承认 员工们 都不满意 这种安排。", question: "谁对这种安排不满意？", opt1: "经理", opt2: "员工们", correct: 2 },
-            { sentence: "这场足球比赛 我们队 强于 他们队", question: "谁更强？", opt1: "他们队", opt2: "我们队", correct: 1 }
+            { sentence: "主任认为 那个校长 大家 都不喜欢。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1, condition: "garden", target_index: 2 },
+            { sentence: "老板指出 员工们 都没有预料到 这种情况。", question: "谁没有预料到这种情况？", opt1: "老板", opt2: "员工们", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "很多决定 孩子们 无法独立作出。", question: "谁无法独立作出决定？", opt1: "孩子们", opt2: "大人们", correct: 1, condition: "filler", target_index: 1 },
+            { sentence: "同事们发现 他的表现 老板 并不满意。", question: "谁对他的表现不满意？", opt1: "老板", opt2: "同事们", correct: 1, condition: "non_garden", target_index: 2 },
+            { sentence: "经理发现 多个部门 都没有解决 这个问题。", question: "谁没有解决这个问题？", opt1: "多个部门", opt2: "经理", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "老师发现 这个学生 同学们 都不愿接近。", question: "不愿接近这个学生的是？", opt1: "老师", opt2: "同学们", correct: 2, condition: "garden", target_index: 2 },
+            { sentence: "那次直播 网友们 都不愿提起。", question: "谁不愿提起那次直播？", opt1: "网友们", opt2: "驴友们", correct: 1, condition: "filler", target_index: 1 },
+            { sentence: "老板承认 这个决定 员工们 都无法理解。", question: "谁无法理解这个决定？", opt1: "员工们", opt2: "老板", correct: 1, condition: "non_garden", target_index: 2 },
+            { sentence: "记者指出 公众 一直没有重视 这类问题。", question: "谁没有重视这类问题？", opt1: "记者", opt2: "公众", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "负责人承认 团队成员 都不支持 这种做法。", question: "谁不支持这种做法？", opt1: "负责人", opt2: "团队成员", correct: 2, condition: "garden", target_index: 1 },
+            { sentence: "经理表示 这个方案 团队成员 都不支持。", question: "谁不支持这个方案？", opt1: "团队成员", opt2: "经理", correct: 1, condition: "garden", target_index: 2 },
+            { sentence: "负责人指出 这个问题 大家 都没有注意到。", question: "谁没有注意到这个问题？", opt1: "大家", opt2: "负责人", correct: 1, condition: "non_garden", target_index: 2 },
+            { sentence: "家长知道 那位老师 孩子们 都不喜欢。", question: "孩子们不喜欢谁？", opt1: "家长", opt2: "那位老师", correct: 2, condition: "non_garden", target_index: 2 },
+            { sentence: "肯德基的 全家桶 我最 喜欢吃了。", question: "谁最喜欢吃全家桶？", opt1: "我", opt2: "扬扬", correct: 1, condition: "filler", target_index: 2 },
+            { sentence: "老师认为 很多学生 都不理解 这项规定。", question: "谁不理解这项规定？", opt1: "老师", opt2: "很多学生", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "邻居们发现 那户人家 大家 都不愿接近。", question: "谁不愿接近那户人家的是？", opt1: "邻居们", opt2: "大家", correct: 2, condition: "garden", target_index: 2 },
+            { sentence: "昨天的派对 只有他 一个人 去了。", question: "谁去了昨天的派对？", opt1: "他", opt2: "我", correct: 1, condition: "filler", target_index: 1 },
+            { sentence: "领导表示 很多员工 都不看好 这项改革。", question: "谁不看好这项改革？", opt1: "领导", opt2: "很多员工", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "朋友们都说 米其林一星 味道 真的很一般。", question: "谁觉得味道很一般？", opt1: "米其林一星", opt2: "朋友们", correct: 2, condition: "filler", target_index: 1 },
+            { sentence: "同事们发现 上级领导 都不认可 这种态度。", question: "谁不认可这种态度？", opt1: "同事们", opt2: "上级领导", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "专家指出 普通人 都没有意识到 这种现象。", question: "谁没有意识到这种现象？", opt1: "普通人", opt2: "专家", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "调查显示 这种观念 年轻人 已经不再认同。", question: "谁不再认同这种观念？", opt1: "年轻人", opt2: "调查人员", correct: 1, condition: "filler", target_index: 2 },
+            { sentence: "主任表示 部门员工 都难以接受 这次调整。", question: "谁难以接受这次调整？", opt1: "部门员工", opt2: "主任", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "经理承认 这种安排 员工们 都不满意。", question: "谁对这种安排不满意？", opt1: "经理", opt2: "员工们", correct: 2, condition: "garden", target_index: 2 },
+            { sentence: "他的行为 所有老师 都看不惯。", question: "谁看不惯他的行为？", opt1: "所有同学", opt2: "所有老师", correct: 2, condition: "filler", target_index: 1 },
+            { sentence: "家长指出 孩子们 都不适应 这种教育方式。", question: "谁不适应这种教育方式？", opt1: "孩子们", opt2: "家长", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "老师认为 这项规定 很多学生 都不理解。", question: "谁不理解这项规定？", opt1: "老师", opt2: "很多学生", correct: 2, condition: "non_garden", target_index: 2 },
+            { sentence: "老板指出 这种情况 员工们 都没有预料到。", question: "谁没有预料到这种情况？", opt1: "员工们", opt2: "老板", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "经理发现 这个问题 多个部门 都没有解决。", question: "谁没有解决这个问题？", opt1: "多个部门", opt2: "经理", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "领导表示 这项改革 很多员工 都不看好。", question: "谁不看好这项改革？", opt1: "领导", opt2: "很多员工", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "主任认为 大家 都不喜欢 那个校长。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1, condition: "garden", target_index: 1 },
+            { sentence: "同事们发现 这种态度 上级领导 都不认可。", question: "谁不认可这种态度？", opt1: "上级领导", opt2: "同事们", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "同事们发现 老板 并不满意 他的表现。", question: "谁对他的表现不满意？", opt1: "老板", opt2: "同事们", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "老师发现 同学们 都不愿接近 这个学生。", question: "不愿接近这个学生的是？", opt1: "老师", opt2: "同学们", correct: 2, condition: "garden", target_index: 1 },
+            { sentence: "老板承认 员工们 都无法理解 这个决定。", question: "谁无法理解这个决定？", opt1: "员工们", opt2: "老板", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "我对这件事的看法 他们 都不了解。", question: "谁不了解这件事的看法？", opt1: "我", opt2: "他们", correct: 2, condition: "filler", target_index: 1 },
+            { sentence: "经理表示 团队成员 都不支持 这个方案。", question: "谁不支持这个方案？", opt1: "团队成员", opt2: "经理", correct: 1, condition: "garden", target_index: 1 },
+            { sentence: "负责人指出 大家 都没有注意到 这个问题。", question: "谁没有注意到这个问题？", opt1: "大家", opt2: "负责人", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "专家指出 这种现象 普通人 都没有意识到。", question: "谁没有意识到这种现象？", opt1: "普通人", opt2: "专家", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "家长知道 孩子们 都不喜欢 那位老师。", question: "孩子们不喜欢谁？", opt1: "那位老师", opt2: "家长", correct: 1, condition: "non_garden", target_index: 2 },
+            { sentence: "家长指出 这种教育方式 孩子们 都不适应。", question: "谁不适应这种教育方式？", opt1: "孩子们", opt2: "家长", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "他这个人 说话 总是词不达意。", question: "谁说话总是词不达意？", opt1: "他", opt2: "我", correct: 1, condition: "filler", target_index: 0 },
+            { sentence: "邻居们发现 大家 都不愿接近 那户人家。", question: "谁不愿接近那户人家的是？", opt1: "邻居们", opt2: "大家", correct: 2, condition: "garden", target_index: 1 },
+            { sentence: "主任表示 这次调整 部门员工 都难以接受。", question: "谁难以接受这次调整？", opt1: "部门员工", opt2: "主任", correct: 1, condition: "non_garden", target_index: 1 },
+            { sentence: "负责人承认 这种做法 团队成员 都不支持。", question: "谁不支持这种做法？", opt1: "团队成员", opt2: "负责人", correct: 1, condition: "garden", target_index: 1 },
+            { sentence: "调查显示 年轻人 已经不再认同 这种观念。", question: "谁不再认同这种观念？", opt1: "调查人员", opt2: "年轻人", correct: 2, condition: "filler", target_index: 1 },
+            { sentence: "记者指出 这类问题 公众 一直没有重视。", question: "谁没有重视这类问题？", opt1: "记者", opt2: "公众", correct: 2, condition: "non_garden", target_index: 1 },
+            { sentence: "这次事件 主办方 拒绝分享细节。", question: "谁拒绝分享细节？", opt1: "主办方", opt2: "网友", correct: 1, condition: "filler", target_index: 1 },
+            { sentence: "经理承认 员工们 都不满意 这种安排。", question: "谁对这种安排不满意？", opt1: "经理", opt2: "员工们", correct: 2, condition: "garden", target_index: 1 },
+            { sentence: "这场足球比赛 我们队 强于 他们队", question: "谁更强？", opt1: "他们队", opt2: "我们队", correct: 1, condition: "filler", target_index: 2 }
         ];
 
-        // 将句子按空格拆分为单词数组
+        // 将句子按空格拆分为单词数组，并保存每个句子的单词数
         const sentences = trials.map(t => t.sentence.split(' '));
         const questions = trials.map(t => ({
             text: t.question,
             opt1: t.opt1,
             opt2: t.opt2,
-            correct: t.correct
+            correct: t.correct,
+            condition: t.condition
         }));
 
         // ---------- 练习材料 ----------
@@ -134,6 +173,7 @@
         // DOM 元素
         const stimDiv = document.getElementById('stimulus');
         const msgDiv = document.getElementById('message');
+        const progressDiv = document.getElementById('progress');
 
         // ---------- 辅助函数 ----------
         function showTextAndWait(text, fontSize = 30) {
@@ -158,26 +198,35 @@
         async function selfPacedReading(words, record = false, sentenceId = null) {
             const wordRows = [];
             const sid = (sentenceId !== null && sentenceId !== undefined) ? sentenceId : 0;
+            const trial = trials[sid];
+            const condition = trial ? trial.condition : "practice";
+            const targetIndex = trial ? trial.target_index : -1;
+            const sentenceLength = words.length;
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
-                msgDiv.innerText = "按空格键继续...";
+                msgDiv.innerText = "按空格键继续 / ESC退出";
                 const start = performance.now();
                 const key = await waitForKey([' ', 'Escape']);
                 const rt = performance.now() - start;
 
                 if (key === 'Escape') {
-                    document.body.innerHTML = '<div style="color:white;text-align:center;margin-top:20%">实验已退出</div>';
+                    document.body.innerHTML = '<div style="color:white;text-align:center;margin-top:20%">实验已退出，感谢您的参与。</div>';
                     throw new Error('Experiment terminated by user');
                 }
 
                 if (record) {
                     wordRows.push({
-                        participant: PARTICIPANT,
+                        participant: participantId,
+                        ielts: ieltsScore,
                         session: SESSION,
                         date: DATE_STR,
+                        trial_type: "experimental",
+                        condition: condition,
                         sentence_id: sid,
+                        sentence_length: sentenceLength,
                         word_index: i,
                         word: words[i],
+                        is_target: (i === targetIndex),
                         rt_ms: Math.round(rt)
                     });
                 }
@@ -186,7 +235,7 @@
             return wordRows;
         }
 
-        async function showQuestion(q, record = false, sentenceId = null) {
+        async function showQuestion(q, record = false, sentenceId = null, isPractice = false) {
             const display = `${q.text}\n\n1. ${q.opt1}\n2. ${q.opt2}\n\n请按 1 或 2 作答`;
             stimDiv.innerText = display;
             stimDiv.style.fontSize = '30px';
@@ -200,9 +249,11 @@
 
             if (record) {
                 questionData.push({
-                    participant: PARTICIPANT,
+                    participant: participantId,
+                    ielts: ieltsScore,
                     session: SESSION,
                     date: DATE_STR,
+                    condition: q.condition,
                     sentence_id: sentenceId,
                     question_text: q.text,
                     option1: q.opt1,
@@ -211,6 +262,22 @@
                     correct: correct,
                     rt_ms: Math.round(rt)
                 });
+            }
+
+            if (isPractice) {
+                let feedbackText = "";
+                if (correct) {
+                    feedbackText = "✅ 正确！很棒，继续加油！";
+                } else {
+                    const correctOption = (q.correct === 1) ? q.opt1 : q.opt2;
+                    feedbackText = `❌ 错误。正确答案是 ${correctOption}。别灰心，继续努力！`;
+                }
+                stimDiv.innerText = feedbackText;
+                stimDiv.style.fontSize = '30px';
+                msgDiv.innerText = "1秒后继续...";
+                await delay(1000);
+                stimDiv.innerText = "";
+                msgDiv.innerText = "";
             }
             return { response, correct };
         }
@@ -255,45 +322,82 @@
             URL.revokeObjectURL(url);
         }
 
+        async function copyDataToClipboard(wordData, questionData) {
+            const wordCSV = wordData.length ? arrayToCSV(wordData) : "";
+            const qCSV = questionData.length ? arrayToCSV(questionData) : "";
+            const fullText = `【单词数据】\n${wordCSV}\n\n【问答数据】\n${qCSV}`;
+            try {
+                await navigator.clipboard.writeText(fullText);
+                alert("数据已复制到剪贴板，您可以直接粘贴发送。");
+            } catch (err) {
+                alert("复制失败，请使用下载按钮保存文件。");
+            }
+        }
+
+        function arrayToCSV(data) {
+            const headers = Object.keys(data[0]);
+            const rows = data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','));
+            return [headers.join(','), ...rows].join('\n');
+        }
+
+        function requestFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        }
+
         // ======================= 主实验 =======================
         async function runExperiment() {
             try {
-                // ---------- 指导语 ----------
-                await showTextAndWait("欢迎参加实验！", 30);
+                requestFullscreen();
+
+                // 指导语
+                await showTextAndWait("欢迎参加本次阅读实验！\n\n在实验过程中，如果您感到任何不适或压力，可以随时按 ESC 键退出。\n\n您的参与对我们非常重要，感谢您的耐心与配合！", 30);
                 await showTextAndWait("首先进行练习，让您熟悉流程。\n\n练习1：您将逐词阅读一个句子。\n每看完一个词，请按空格键继续。\n\n按任意键开始练习1。", 30);
                 await showFixation(0.5);
                 await selfPacedReading(practiceWords, false);
 
                 await showTextAndWait("练习2：您将看到一个选择题。\n请按数字键 1 或 2 选择答案。\n\n按任意键开始练习2。", 30);
-                await showQuestion(practiceQuestion, false);
+                await showQuestion(practiceQuestion, false, null, true);
 
                 await showTextAndWait("练习结束。\n\n正式实验即将开始。\n每个句子后都会有一个选择题，请按 1 或 2 作答。\n\n按任意键开始正式实验。", 30);
 
-                // ---------- 正式实验 ----------
-                for (let i = 0; i < sentences.length; i++) {
+                // 正式实验
+                const total = sentences.length;
+                const half = Math.floor(total / 2);
+                for (let i = 0; i < total; i++) {
+                    // 进度显示
+                    progressDiv.innerText = `第 ${i+1} / ${total} 个句子`;
+                    // 中途休息
+                    if (i === half) {
+                        await showTextAndWait("已完成一半实验，您可以稍作休息。准备好后按任意键继续。", 30);
+                    }
                     await showFixation(0.5);
                     const wordRows = await selfPacedReading(sentences[i], true, i);
                     wordData.push(...wordRows);
-                    await showQuestion(questions[i], true, i);
+                    await showQuestion(questions[i], true, i, false);
                     await delay(500);
                 }
+                progressDiv.innerText = "";
 
-                // ---------- 结束 ----------
-                await showTextAndWait("实验结束，谢谢参与！\n\n请点击右下角按钮下载数据。", 30);
-                document.getElementById('download-panel').style.display = 'block';
-                document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${PARTICIPANT}.csv`);
-                document.getElementById('download-questions').onclick = () => downloadCSV(questionData, `questions_${PARTICIPANT}.csv`);
+                // 结束
+                await showTextAndWait("实验结束，非常感谢您的参与！\n\n请点击右下角按钮下载数据，或复制数据到剪贴板发送。", 30);
+                const panel = document.getElementById('download-panel');
+                panel.style.display = 'flex';
+                document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${filePrefix}.csv`);
+                document.getElementById('download-questions').onclick = () => downloadCSV(questionData, `questions_${filePrefix}.csv`);
+                document.getElementById('copy-data').onclick = () => copyDataToClipboard(wordData, questionData);
 
-                // 控制台输出正确率
                 if (questionData.length) {
-                    const total = questionData.length;
+                    const totalQ = questionData.length;
                     const correctCount = questionData.filter(d => d.correct).length;
-                    console.log(`答题正确率: ${correctCount}/${total} (${(correctCount/total*100).toFixed(1)}%)`);
+                    console.log(`答题正确率: ${correctCount}/${totalQ} (${(correctCount/totalQ*100).toFixed(1)}%)`);
                 }
             } catch (err) {
                 console.error(err);
                 if (err.message === 'Experiment terminated by user') {
-                    stimDiv.innerText = "实验已退出";
+                    stimDiv.innerText = "实验已退出，感谢您的参与。";
                     msgDiv.innerText = "您可以关闭页面。";
                 } else {
                     stimDiv.innerText = "发生错误，请刷新页面重试。";
