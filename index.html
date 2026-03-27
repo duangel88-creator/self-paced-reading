@@ -36,6 +36,7 @@
             padding: 4px 8px;
             border-radius: 8px;
         }
+        /* 右下角极小提示 */
         #hint {
             position: fixed;
             bottom: 20px;
@@ -207,6 +208,7 @@
             const condition = trial ? trial.condition : "practice";
             const targetIndex = trial ? trial.target_index : -1;
             const sentenceLength = words.length;
+            // 显示右下角小字提示
             hintDiv.innerText = "空格键继续 / ESC退出";
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
@@ -227,7 +229,7 @@
                         session: SESSION,
                         date: DATE_STR,
                         trial_type: "experimental",
-                        condition: condition,
+                        condition: condition,          // 关键字段
                         sentence_id: sid,
                         sentence_length: sentenceLength,
                         word_index: i,
@@ -238,7 +240,7 @@
                 }
                 await delay(100);
             }
-            hintDiv.innerText = "";
+            hintDiv.innerText = ""; // 句子结束后清除提示
             return wordRows;
         }
 
@@ -261,7 +263,7 @@
                     ielts: ieltsScore,
                     session: SESSION,
                     date: DATE_STR,
-                    condition: q.condition,
+                    condition: q.condition,           // 关键字段
                     sentence_id: sentenceId,
                     question_text: q.text,
                     option1: q.opt1,
@@ -272,7 +274,7 @@
                 });
             }
 
-            // 练习阶段显示反馈，然后等待按键继续
+            // 练习阶段显示反馈，然后等待任意键继续
             if (isPractice) {
                 let feedbackText = "";
                 if (correct) {
@@ -343,7 +345,7 @@
             try {
                 requestFullscreen();
 
-                // ---------- 指导语 1：欢迎与退出 ----------
+                // 指导语 1：欢迎与退出
                 await showTextAndWait(
                     "欢迎参加本次阅读实验！\n\n" +
                     "如果您在实验过程中感到任何不适或压力，可以随时按 ESC 键退出。\n\n" +
@@ -351,7 +353,7 @@
                     30
                 );
 
-                // ---------- 指导语 2：重点强调慢慢阅读 ----------
+                // 指导语 2：重点强调慢慢阅读
                 await showTextAndWait(
                     "⚠️ 重要提示 ⚠️\n\n" +
                     "请务必仔细阅读每一个词，确保自己理解了句子的意思后，再按空格键继续。\n\n" +
@@ -386,6 +388,7 @@
                 const half = Math.floor(total / 2);
                 for (let i = 0; i < total; i++) {
                     progressDiv.innerText = `第 ${i+1} / ${total} 个句子`;
+                    // 中途休息（正好一半时）
                     if (i === half) {
                         await showTextAndWait("已完成一半实验，您可以稍作休息。准备好后按任意键继续。", 30);
                     }
@@ -398,7 +401,7 @@
                 progressDiv.innerText = "";
                 hintDiv.innerText = "";
 
-                // ---------- 结束 ----------
+                // 结束
                 await showTextAndWait(
                     "实验结束，非常感谢您的参与！\n\n" +
                     "请点击右下角按钮下载两个数据文件，并保存好。\n\n" +
