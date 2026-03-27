@@ -36,6 +36,18 @@
             padding: 4px 8px;
             border-radius: 8px;
         }
+        #hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #888;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 8px;
+            border-radius: 8px;
+            user-select: none;
+            pointer-events: none;
+        }
         #download-panel {
             position: fixed;
             bottom: 20px;
@@ -54,21 +66,16 @@
             margin-left: 0;
             cursor: pointer;
         }
-        .feedback {
-            font-size: 30px;
-            margin-top: 20px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
     <div id="stimulus"></div>
     <div id="message"></div>
     <div id="progress"></div>
+    <div id="hint"></div>
     <div id="download-panel">
         <button id="download-words">下载单词数据</button>
         <button id="download-questions">下载问答数据</button>
-        <button id="copy-data">📋 复制数据到剪贴板</button>
     </div>
 
     <script>
@@ -169,12 +176,14 @@
         const stimDiv = document.getElementById('stimulus');
         const msgDiv = document.getElementById('message');
         const progressDiv = document.getElementById('progress');
+        const hintDiv = document.getElementById('hint');
 
         // ---------- 辅助函数 ----------
         function showTextAndWait(text, fontSize = 30) {
             stimDiv.style.fontSize = fontSize + 'px';
             stimDiv.innerText = text;
             msgDiv.innerText = "按任意键继续...";
+            hintDiv.innerText = "";
             return new Promise(resolve => {
                 const handler = (e) => {
                     window.removeEventListener('keydown', handler);
@@ -187,6 +196,7 @@
         function showFixation(duration = 0.5) {
             stimDiv.innerText = '+';
             msgDiv.innerText = '';
+            hintDiv.innerText = "";
             return new Promise(resolve => setTimeout(resolve, duration * 1000));
         }
 
@@ -197,9 +207,10 @@
             const condition = trial ? trial.condition : "practice";
             const targetIndex = trial ? trial.target_index : -1;
             const sentenceLength = words.length;
+            hintDiv.innerText = "空格键继续 / ESC退出";
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
-                msgDiv.innerText = "空格键继续 / ESC退出";
+                msgDiv.innerText = "";
                 const start = performance.now();
                 const key = await waitForKey([' ', 'Escape']);
                 const rt = performance.now() - start;
@@ -227,6 +238,7 @@
                 }
                 await delay(100);
             }
+            hintDiv.innerText = "";
             return wordRows;
         }
 
@@ -235,6 +247,7 @@
             stimDiv.innerText = display;
             stimDiv.style.fontSize = '30px';
             msgDiv.innerText = '';
+            hintDiv.innerText = "";
             const start = performance.now();
             const key = await waitForKey(['1', '2', 'Escape']);
             const rt = performance.now() - start;
@@ -259,7 +272,7 @@
                 });
             }
 
-            // 练习阶段显示积极反馈
+            // 练习阶段显示反馈，然后等待按键继续
             if (isPractice) {
                 let feedbackText = "";
                 if (correct) {
@@ -270,15 +283,15 @@
                 }
                 stimDiv.innerText = feedbackText;
                 stimDiv.style.fontSize = '30px';
-                msgDiv.innerText = "1秒后继续...";
-                await delay(1000);
+                msgDiv.innerText = "按任意键继续...";
+                await waitForKey();  // 等待任意键
                 stimDiv.innerText = "";
                 msgDiv.innerText = "";
             }
             return { response, correct };
         }
 
-        function waitForKey(allowedKeys) {
+        function waitForKey(allowedKeys = null) {
             return new Promise(resolve => {
                 const handler = (e) => {
                     const key = e.key;
@@ -318,24 +331,6 @@
             URL.revokeObjectURL(url);
         }
 
-        async function copyDataToClipboard(wordData, questionData) {
-            const wordCSV = wordData.length ? arrayToCSV(wordData) : "";
-            const qCSV = questionData.length ? arrayToCSV(questionData) : "";
-            const fullText = `【单词数据】\n${wordCSV}\n\n【问答数据】\n${qCSV}`;
-            try {
-                await navigator.clipboard.writeText(fullText);
-                alert("数据已复制到剪贴板，您可以直接粘贴发送。");
-            } catch (err) {
-                alert("复制失败，请使用下载按钮保存文件。");
-            }
-        }
-
-        function arrayToCSV(data) {
-            const headers = Object.keys(data[0]);
-            const rows = data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','));
-            return [headers.join(','), ...rows].join('\n');
-        }
-
         function requestFullscreen() {
             const elem = document.documentElement;
             if (elem.requestFullscreen) elem.requestFullscreen();
@@ -348,35 +343,41 @@
             try {
                 requestFullscreen();
 
-                // ---------- 指导语（含退出提示、慢慢阅读强调）----------
+                // ---------- 指导语 1：欢迎与退出 ----------
                 await showTextAndWait(
                     "欢迎参加本次阅读实验！\n\n" +
                     "如果您在实验过程中感到任何不适或压力，可以随时按 ESC 键退出。\n\n" +
-                    "请仔细阅读每一个词，确保理解句子意思后再按空格键继续，因为每个句子后都有一个理解性问题。\n\n" +
-                    "您的认真作答对我们的研究非常重要。感谢您的参与！",
+                    "您的参与对我们非常重要。感谢您的支持！",
                     30
                 );
 
+                // ---------- 指导语 2：重点强调慢慢阅读 ----------
                 await showTextAndWait(
-                    "首先进行练习，让您熟悉流程。\n\n" +
-                    "练习1：您将逐词阅读一个句子。\n每看完一个词，请按空格键继续。\n\n" +
-                    "按任意键开始练习1。",
+                    "⚠️ 重要提示 ⚠️\n\n" +
+                    "请务必仔细阅读每一个词，确保自己理解了句子的意思后，再按空格键继续。\n\n" +
+                    "因为每个句子后面都会有一个理解性问题，您需要正确回答。\n\n" +
+                    "请放慢速度，认真阅读。\n\n按任意键开始练习。",
                     30
                 );
+
+                // 练习1：自定速阅读
                 await showFixation(0.5);
                 await selfPacedReading(practiceWords, false);
 
+                // 练习2：选择题（带反馈，按键继续）
                 await showTextAndWait(
-                    "练习2：您将看到一个选择题。\n请按数字键 1 或 2 选择答案。\n\n" +
-                    "练习阶段会提供正确/错误反馈，正式实验则不会。\n\n按任意键开始练习2。",
+                    "现在进行选择题练习。\n请按数字键 1 或 2 选择答案。\n\n" +
+                    "练习阶段会提供正确/错误反馈，并需要您按键继续。\n\n按任意键开始。",
                     30
                 );
-                await showQuestion(practiceQuestion, false, null, true); // 练习阶段带反馈
+                await showQuestion(practiceQuestion, false, null, true);
 
+                // 正式实验开始前再次提醒
                 await showTextAndWait(
                     "练习结束。\n\n" +
-                    "正式实验即将开始。\n每个句子后都会有一个选择题，请按 1 或 2 作答。\n\n" +
-                    "请保持专注，逐词阅读，理解后再按键。\n\n按任意键开始正式实验。",
+                    "正式实验即将开始。\n" +
+                    "⚠️ 请继续逐词阅读，理解后再按键，每个句子后都有一个选择题。\n\n" +
+                    "按任意键开始正式实验。",
                     30
                 );
 
@@ -395,11 +396,12 @@
                     await delay(500);
                 }
                 progressDiv.innerText = "";
+                hintDiv.innerText = "";
 
                 // ---------- 结束 ----------
                 await showTextAndWait(
                     "实验结束，非常感谢您的参与！\n\n" +
-                    "请点击右下角按钮下载数据，或复制数据到剪贴板发送。\n\n" +
+                    "请点击右下角按钮下载两个数据文件，并保存好。\n\n" +
                     "您的数据将严格保密，仅用于学术研究。",
                     30
                 );
@@ -407,7 +409,6 @@
                 panel.style.display = 'flex';
                 document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${filePrefix}.csv`);
                 document.getElementById('download-questions').onclick = () => downloadCSV(questionData, `questions_${filePrefix}.csv`);
-                document.getElementById('copy-data').onclick = () => copyDataToClipboard(wordData, questionData);
 
                 if (questionData.length) {
                     const totalQ = questionData.length;
