@@ -92,12 +92,7 @@
         const SESSION = "001";
         const DATE_STR = new Date().toISOString().slice(0,10);
 
-        // ---------- 正式实验数据（需用户补充 condition 和 target_index）----------
-        // 注意：请根据实际研究设计，为每个句子填写 condition 字段：
-        //   - "garden"       (花园路径句)
-        //   - "non_garden"   (非花园路径句)
-        //   - "filler"       (填充句)
-        // 并指定 target_index（关键目标词在句子中的位置，从0开始计数）
+        // ---------- 正式实验数据（已包含 condition 和 target_index）----------
         const trials = [
             { sentence: "主任认为 那个校长 大家 都不喜欢。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1, condition: "garden", target_index: 2 },
             { sentence: "老板指出 员工们 都没有预料到 这种情况。", question: "谁没有预料到这种情况？", opt1: "老板", opt2: "员工们", correct: 2, condition: "non_garden", target_index: 1 },
@@ -151,7 +146,7 @@
             { sentence: "这场足球比赛 我们队 强于 他们队", question: "谁更强？", opt1: "他们队", opt2: "我们队", correct: 1, condition: "filler", target_index: 2 }
         ];
 
-        // 将句子按空格拆分为单词数组，并保存每个句子的单词数
+        // 将句子拆分为单词数组
         const sentences = trials.map(t => t.sentence.split(' '));
         const questions = trials.map(t => ({
             text: t.question,
@@ -161,12 +156,12 @@
             condition: t.condition
         }));
 
-        // ---------- 练习材料 ----------
+        // 练习材料
         const practiceSentence = "接下来 你要读 一些句子。";
         const practiceWords = practiceSentence.split(' ');
         const practiceQuestion = { text: "接下来你要读", opt1: "句子", opt2: "词语", correct: 1 };
 
-        // ---------- 数据存储 ----------
+        // 数据存储
         let wordData = [];
         let questionData = [];
 
@@ -204,7 +199,7 @@
             const sentenceLength = words.length;
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
-                msgDiv.innerText = "按空格键继续 / ESC退出";
+                msgDiv.innerText = "空格键继续 / ESC退出";
                 const start = performance.now();
                 const key = await waitForKey([' ', 'Escape']);
                 const rt = performance.now() - start;
@@ -264,6 +259,7 @@
                 });
             }
 
+            // 练习阶段显示积极反馈
             if (isPractice) {
                 let feedbackText = "";
                 if (correct) {
@@ -352,24 +348,43 @@
             try {
                 requestFullscreen();
 
-                // 指导语
-                await showTextAndWait("欢迎参加本次阅读实验！\n\n在实验过程中，如果您感到任何不适或压力，可以随时按 ESC 键退出。\n\n您的参与对我们非常重要，感谢您的耐心与配合！", 30);
-                await showTextAndWait("首先进行练习，让您熟悉流程。\n\n练习1：您将逐词阅读一个句子。\n每看完一个词，请按空格键继续。\n\n按任意键开始练习1。", 30);
+                // ---------- 指导语（含退出提示、慢慢阅读强调）----------
+                await showTextAndWait(
+                    "欢迎参加本次阅读实验！\n\n" +
+                    "如果您在实验过程中感到任何不适或压力，可以随时按 ESC 键退出。\n\n" +
+                    "请仔细阅读每一个词，确保理解句子意思后再按空格键继续，因为每个句子后都有一个理解性问题。\n\n" +
+                    "您的认真作答对我们的研究非常重要。感谢您的参与！",
+                    30
+                );
+
+                await showTextAndWait(
+                    "首先进行练习，让您熟悉流程。\n\n" +
+                    "练习1：您将逐词阅读一个句子。\n每看完一个词，请按空格键继续。\n\n" +
+                    "按任意键开始练习1。",
+                    30
+                );
                 await showFixation(0.5);
                 await selfPacedReading(practiceWords, false);
 
-                await showTextAndWait("练习2：您将看到一个选择题。\n请按数字键 1 或 2 选择答案。\n\n按任意键开始练习2。", 30);
-                await showQuestion(practiceQuestion, false, null, true);
+                await showTextAndWait(
+                    "练习2：您将看到一个选择题。\n请按数字键 1 或 2 选择答案。\n\n" +
+                    "练习阶段会提供正确/错误反馈，正式实验则不会。\n\n按任意键开始练习2。",
+                    30
+                );
+                await showQuestion(practiceQuestion, false, null, true); // 练习阶段带反馈
 
-                await showTextAndWait("练习结束。\n\n正式实验即将开始。\n每个句子后都会有一个选择题，请按 1 或 2 作答。\n\n按任意键开始正式实验。", 30);
+                await showTextAndWait(
+                    "练习结束。\n\n" +
+                    "正式实验即将开始。\n每个句子后都会有一个选择题，请按 1 或 2 作答。\n\n" +
+                    "请保持专注，逐词阅读，理解后再按键。\n\n按任意键开始正式实验。",
+                    30
+                );
 
-                // 正式实验
+                // ---------- 正式实验 ----------
                 const total = sentences.length;
                 const half = Math.floor(total / 2);
                 for (let i = 0; i < total; i++) {
-                    // 进度显示
                     progressDiv.innerText = `第 ${i+1} / ${total} 个句子`;
-                    // 中途休息
                     if (i === half) {
                         await showTextAndWait("已完成一半实验，您可以稍作休息。准备好后按任意键继续。", 30);
                     }
@@ -381,8 +396,13 @@
                 }
                 progressDiv.innerText = "";
 
-                // 结束
-                await showTextAndWait("实验结束，非常感谢您的参与！\n\n请点击右下角按钮下载数据，或复制数据到剪贴板发送。", 30);
+                // ---------- 结束 ----------
+                await showTextAndWait(
+                    "实验结束，非常感谢您的参与！\n\n" +
+                    "请点击右下角按钮下载数据，或复制数据到剪贴板发送。\n\n" +
+                    "您的数据将严格保密，仅用于学术研究。",
+                    30
+                );
                 const panel = document.getElementById('download-panel');
                 panel.style.display = 'flex';
                 document.getElementById('download-words').onclick = () => downloadCSV(wordData, `words_${filePrefix}.csv`);
