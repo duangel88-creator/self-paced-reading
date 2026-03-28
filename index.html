@@ -36,7 +36,6 @@
             padding: 4px 8px;
             border-radius: 8px;
         }
-        /* 右下角极小提示 */
         #hint {
             position: fixed;
             bottom: 20px;
@@ -208,7 +207,7 @@
             const condition = trial ? trial.condition : "practice";
             const targetIndex = trial ? trial.target_index : -1;
             const sentenceLength = words.length;
-            // 显示右下角小字提示
+            // 右下角小字提示
             hintDiv.innerText = "空格键继续 / ESC退出";
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
@@ -229,7 +228,7 @@
                         session: SESSION,
                         date: DATE_STR,
                         trial_type: "experimental",
-                        condition: condition,          // 关键字段
+                        condition: condition,
                         sentence_id: sid,
                         sentence_length: sentenceLength,
                         word_index: i,
@@ -240,7 +239,7 @@
                 }
                 await delay(100);
             }
-            hintDiv.innerText = ""; // 句子结束后清除提示
+            hintDiv.innerText = "";
             return wordRows;
         }
 
@@ -263,7 +262,7 @@
                     ielts: ieltsScore,
                     session: SESSION,
                     date: DATE_STR,
-                    condition: q.condition,           // 关键字段
+                    condition: q.condition,
                     sentence_id: sentenceId,
                     question_text: q.text,
                     option1: q.opt1,
@@ -353,12 +352,11 @@
                     30
                 );
 
-                // 指导语 2：重点强调慢慢阅读
+                // 指导语 2：自然阅读，理解后再继续（无⚠️）
                 await showTextAndWait(
-                    "⚠️ 重要提示 ⚠️\n\n" +
-                    "请务必仔细阅读每一个词，确保自己理解了句子的意思后，再按空格键继续。\n\n" +
-                    "因为每个句子后面都会有一个理解性问题，您需要正确回答。\n\n" +
-                    "请放慢速度，认真阅读。\n\n按任意键开始练习。",
+                    "请以自然正常的速度阅读每一组词汇，确保自己理解句子意思后再按空格键继续。\n\n" +
+                    "每一个句子后面都会有一个理解性问题，请根据上一句阅读的信息作答。\n\n" +
+                    "按任意键开始练习。",
                     30
                 );
 
@@ -374,11 +372,11 @@
                 );
                 await showQuestion(practiceQuestion, false, null, true);
 
-                // 正式实验开始前再次提醒
+                // 正式实验开始前（无⚠️）
                 await showTextAndWait(
                     "练习结束。\n\n" +
                     "正式实验即将开始。\n" +
-                    "⚠️ 请继续逐词阅读，理解后再按键，每个句子后都有一个选择题。\n\n" +
+                    "自然阅读每一组词汇，理解后按键，并回答句子后面的选择题。\n\n" +
                     "按任意键开始正式实验。",
                     30
                 );
