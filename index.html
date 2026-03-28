@@ -273,16 +273,9 @@
                 });
             }
 
-            // 练习阶段显示反馈，然后等待任意键继续
+            // 练习阶段：显示统一鼓励语，不判断对错，等待按键继续
             if (isPractice) {
-                let feedbackText = "";
-                if (correct) {
-                    feedbackText = "✅ 正确！很棒，继续加油！";
-                } else {
-                    const correctOption = (q.correct === 1) ? q.opt1 : q.opt2;
-                    feedbackText = `❌ 错误。正确答案是 ${correctOption}。别灰心，继续努力！`;
-                }
-                stimDiv.innerText = feedbackText;
+                stimDiv.innerText = "很好！你现在已经掌握了如何答题？";
                 stimDiv.style.fontSize = '30px';
                 msgDiv.innerText = "按任意键继续...";
                 await waitForKey();  // 等待任意键
@@ -352,9 +345,9 @@
                     30
                 );
 
-                // 指导语 2：自然阅读，理解后再继续（无⚠️）
+                // 指导语 2：自然阅读（已修改）
                 await showTextAndWait(
-                    "请以自然正常的速度阅读每一组词汇，确保自己理解句子意思后再按空格键继续。\n\n" +
+                    "请以自然阅读每一组词汇，确保自己理解句子意思后再按空格键继续。\n\n" +
                     "每一个句子后面都会有一个理解性问题，请根据上一句阅读的信息作答。\n\n" +
                     "按任意键开始练习。",
                     30
@@ -364,15 +357,15 @@
                 await showFixation(0.5);
                 await selfPacedReading(practiceWords, false);
 
-                // 练习2：选择题（带反馈，按键继续）
+                // 练习2：选择题（带统一鼓励语，按键继续）
                 await showTextAndWait(
                     "现在进行选择题练习。\n请按数字键 1 或 2 选择答案。\n\n" +
-                    "练习阶段会提供正确/错误反馈，并需要您按键继续。\n\n按任意键开始。",
+                    "按任意键开始。",
                     30
                 );
                 await showQuestion(practiceQuestion, false, null, true);
 
-                // 正式实验开始前（无⚠️）
+                // 正式实验开始前（已修改）
                 await showTextAndWait(
                     "练习结束。\n\n" +
                     "正式实验即将开始。\n" +
@@ -386,7 +379,7 @@
                 const half = Math.floor(total / 2);
                 for (let i = 0; i < total; i++) {
                     progressDiv.innerText = `第 ${i+1} / ${total} 个句子`;
-                    // 中途休息（正好一半时）
+                    // 中途休息
                     if (i === half) {
                         await showTextAndWait("已完成一半实验，您可以稍作休息。准备好后按任意键继续。", 30);
                     }
