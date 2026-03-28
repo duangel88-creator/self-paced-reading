@@ -207,7 +207,6 @@
             const condition = trial ? trial.condition : "practice";
             const targetIndex = trial ? trial.target_index : -1;
             const sentenceLength = words.length;
-            // 右下角小字提示
             hintDiv.innerText = "空格键继续 / ESC退出";
             for (let i = 0; i < words.length; i++) {
                 stimDiv.innerText = words[i];
@@ -273,9 +272,9 @@
                 });
             }
 
-            // 练习阶段：显示统一鼓励语，不判断对错，等待按键继续
+            // 练习阶段：统一鼓励语，不判断对错，等待按键继续
             if (isPractice) {
-                stimDiv.innerText = "很好！你现在已经掌握了如何答题？";
+                stimDiv.innerText = "很好！你现在已经掌握了如何答题！";
                 stimDiv.style.fontSize = '30px';
                 msgDiv.innerText = "按任意键继续...";
                 await waitForKey();  // 等待任意键
@@ -345,7 +344,7 @@
                     30
                 );
 
-                // 指导语 2：自然阅读（已修改）
+                // 指导语 2：自然阅读（练习前）
                 await showTextAndWait(
                     "请以自然阅读每一组词汇，确保自己理解句子意思后再按空格键继续。\n\n" +
                     "每一个句子后面都会有一个理解性问题，请根据上一句阅读的信息作答。\n\n" +
@@ -365,7 +364,7 @@
                 );
                 await showQuestion(practiceQuestion, false, null, true);
 
-                // 正式实验开始前（已修改）
+                // 正式实验开始前（练习结束）
                 await showTextAndWait(
                     "练习结束。\n\n" +
                     "正式实验即将开始。\n" +
