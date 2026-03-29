@@ -243,16 +243,23 @@
         }
 
         async function showQuestion(q, record = false, sentenceId = null, isPractice = false) {
-            const display = `${q.text}\n\n1. ${q.opt1}\n2. ${q.opt2}\n\n请按 1 或 2 作答`;
+            // 显示选项时，仍用数字1和2，但实际按键为1和0
+            const display = `${q.text}\n\n1. ${q.opt1}\n2. ${q.opt2}\n\n请按 1 或 0 作答（1代表选项1，0代表选项2）`;
             stimDiv.innerText = display;
             stimDiv.style.fontSize = '30px';
             msgDiv.innerText = '';
             hintDiv.innerText = "";
             const start = performance.now();
-            const key = await waitForKey(['1', '2', 'Escape']);
+            const key = await waitForKey(['1', '0', 'Escape']);
             const rt = performance.now() - start;
             if (key === 'Escape') throw new Error('Experiment terminated');
-            const response = parseInt(key);
+            
+            // 将按键映射为选项：'1' → 选项1, '0' → 选项2
+            let response = null;
+            if (key === '1') response = 1;
+            else if (key === '0') response = 2;
+            
+            // 正确性判断
             const correct = (response === q.correct);
 
             if (record) {
@@ -344,7 +351,7 @@
                     30
                 );
 
-                // 指导语 2：自然阅读（练习前）——已改为“请自然阅读”
+                // 指导语 2：自然阅读（练习前）
                 await showTextAndWait(
                     "请自然阅读每一组词汇，确保自己理解句子意思后再按空格键继续。\n\n" +
                     "每一个句子后面都会有一个理解性问题，请根据上一句阅读的信息作答。\n\n" +
@@ -358,7 +365,7 @@
 
                 // 练习2：选择题（带统一鼓励语，按键继续）
                 await showTextAndWait(
-                    "现在进行选择题练习。\n请按数字键 1 或 2 选择答案。\n\n" +
+                    "现在进行选择题练习。\n请按数字键 1 或 0 选择答案（1代表选项1，0代表选项2）。\n\n" +
                     "按任意键开始。",
                     30
                 );
