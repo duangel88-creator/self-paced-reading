@@ -99,7 +99,7 @@
         const SESSION = "001";
         const DATE_STR = new Date().toISOString().slice(0,10);
 
-        // ---------- 正式实验数据（已根据反馈修正 condition 和 target_index）----------
+        // ---------- 正式实验数据（已修正第49句为 filler）----------
         const trials = [
             { sentence: "主任认为 那个校长 大家 都不喜欢。", question: "大家都不喜欢谁？", opt1: "校长", opt2: "主任", correct: 1, condition: "garden", target_index: 2 },
             { sentence: "老板指出 员工们 都没有预料到 这种情况。", question: "谁没有预料到这种情况？", opt1: "老板", opt2: "员工们", correct: 2, condition: "non_garden", target_index: 1 },
@@ -150,7 +150,7 @@
             { sentence: "记者指出 这类问题 公众 一直没有重视。", question: "谁没有重视这类问题？", opt1: "记者", opt2: "公众", correct: 2, condition: "garden", target_index: 1 },
             { sentence: "这次事件 主办方 拒绝分享细节。", question: "谁拒绝分享细节？", opt1: "主办方", opt2: "网友", correct: 1, condition: "filler", target_index: 1 },
             { sentence: "经理承认 员工们 都不满意 这种安排。", question: "谁对这种安排不满意？", opt1: "经理", opt2: "员工们", correct: 2, condition: "non_garden", target_index: 1 },
-            { sentence: "这场足球比赛 我们队 强于 他们队", question: "谁更强？", opt1: "他们队", opt2: "我们队", correct: 1, condition: "non_garden", target_index: 2 }
+            { sentence: "这场足球比赛 我们队 强于 他们队", question: "谁更强？", opt1: "他们队", opt2: "我们队", correct: 1, condition: "filler", target_index: 2 }   // 修正为 filler
         ];
 
         // 将句子拆分为单词数组
@@ -243,23 +243,22 @@
         }
 
         async function showQuestion(q, record = false, sentenceId = null, isPractice = false) {
-            // 选项显示为 A 和 L
-            const display = `${q.text}\n\nA. ${q.opt1}\nL. ${q.opt2}\n\n请按 A 或 L 作答（A代表选项1，L代表选项2）`;
+            // 选项显示为 A 和 L，提示简洁
+            const display = `${q.text}\n\nA. ${q.opt1}\nL. ${q.opt2}\n\n请按 A 或 L 作答`;
             stimDiv.innerText = display;
             stimDiv.style.fontSize = '30px';
             msgDiv.innerText = '';
             hintDiv.innerText = "";
             const start = performance.now();
-            const key = await waitForKey(['a', 'l', 'Escape']); // 不区分大小写，这里用小写监听
+            const key = await waitForKey(['a', 'l', 'Escape']);
             const rt = performance.now() - start;
             if (key === 'Escape') throw new Error('Experiment terminated');
             
-            // 将按键映射为选项：'a' → 选项1, 'l' → 选项2
+            // 将按键映射为选项：'a' → 1, 'l' → 2
             let response = null;
             if (key === 'a') response = 1;
             else if (key === 'l') response = 2;
             
-            // 正确性判断
             const correct = (response === q.correct);
 
             if (record) {
@@ -284,7 +283,7 @@
                 stimDiv.innerText = "很好！你现在已经掌握了如何答题！";
                 stimDiv.style.fontSize = '30px';
                 msgDiv.innerText = "按任意键继续...";
-                await waitForKey();  // 等待任意键
+                await waitForKey();
                 stimDiv.innerText = "";
                 msgDiv.innerText = "";
             }
@@ -295,7 +294,6 @@
             return new Promise(resolve => {
                 const handler = (e) => {
                     const key = e.key;
-                    // 如果允许的键列表包含该键（不区分大小写）
                     if (allowedKeys && !allowedKeys.includes(key.toLowerCase())) return;
                     window.removeEventListener('keydown', handler);
                     resolve(key.toLowerCase());
@@ -344,11 +342,12 @@
             try {
                 requestFullscreen();
 
-                // 指导语 1：欢迎与退出（专业版）
+                // 指导语 1：欢迎与退出（排版调整）
                 await showTextAndWait(
                     "欢迎参加本次阅读实验！\n\n" +
                     "为了保证实验数据的科学性和有效性，请您在无特殊情况下尽量一次性完成实验，避免中途中断。\n\n" +
-                    "若您在实验过程中感到任何不适或压力，可以随时按 ESC 键退出。您的参与对我们的研究非常重要，感谢您的支持！",
+                    "若您在实验过程中感到任何不适或压力，可以随时按 ESC 键退出。\n\n" +
+                    "您的参与对我们的研究非常重要，感谢您的支持！",
                     30
                 );
 
@@ -366,7 +365,7 @@
 
                 // 练习2：选择题（带统一鼓励语，按键继续）
                 await showTextAndWait(
-                    "现在进行选择题练习。\n请按 A 或 L 选择答案（A代表选项1，L代表选项2）。\n\n" +
+                    "现在进行选择题练习。\n请按 A 或 L 选择答案。\n\n" +
                     "按任意键开始。",
                     30
                 );
@@ -386,7 +385,6 @@
                 const half = Math.floor(total / 2);
                 for (let i = 0; i < total; i++) {
                     progressDiv.innerText = `第 ${i+1} / ${total} 个句子`;
-                    // 中途休息
                     if (i === half) {
                         await showTextAndWait("已完成一半实验，您可以稍作休息。准备好后按任意键继续。", 30);
                     }
